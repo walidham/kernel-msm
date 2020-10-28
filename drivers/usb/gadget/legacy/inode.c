@@ -1019,10 +1019,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 			struct usb_ep		*ep = dev->gadget->ep0;
 			struct usb_request	*req = dev->req;
 
-<<<<<<< HEAD
-			if ((retval = setup_req (ep, req, 0)) == 0)
-				retval = usb_ep_queue (ep, req, GFP_ATOMIC);
-=======
+
 			if ((retval = setup_req (ep, req, 0)) == 0) {
 				++dev->udc_usage;
 				spin_unlock_irq (&dev->lock);
@@ -1030,7 +1027,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 				spin_lock_irq (&dev->lock);
 				--dev->udc_usage;
 			}
->>>>>>> v3.18.75
+			
 			dev->state = STATE_DEV_CONNECTED;
 
 			/* assume that was SET_CONFIGURATION */
