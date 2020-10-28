@@ -22,20 +22,14 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-ioctl.h>
 
-<<<<<<< HEAD
-#define convert_in_user(srcptr, dstptr)			\
-({							\
-	typeof(*srcptr) val;				\
-							\
-	get_user(val, srcptr) || put_user(val, dstptr);	\
-=======
+
 /* Use the same argument order as copy_in_user */
 #define assign_in_user(to, from)					\
 ({									\
 	typeof(*from) __assign_tmp;					\
 									\
 	get_user(__assign_tmp, from) || put_user(__assign_tmp, to);	\
->>>>>>> v3.18.103
+
 })
 
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -64,83 +58,7 @@ struct v4l2_window32 {
 	__u8                    global_alpha;
 };
 
-<<<<<<< HEAD
-static int bufsize_v4l2_window32(struct v4l2_window32 __user *up)
-{
-	__u32 clipcount;
 
-	if (get_user(clipcount, &up->clipcount))
-		return -EFAULT;
-	if (clipcount > 2048)
-		return -EINVAL;
-	return clipcount * sizeof(struct v4l2_clip);
-}
-
-static int get_v4l2_window32(struct v4l2_window __user *kp, struct
-		v4l2_window32 __user *up, void __user *aux_buf, int aux_space)
-{
-	__u32 clipcount;
-
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_window32)) ||
-		copy_in_user(&kp->w, &up->w, sizeof(up->w)) ||
-		convert_in_user(&up->field, &kp->field) ||
-		convert_in_user(&up->chromakey, &kp->chromakey) ||
-		get_user(clipcount, &up->clipcount) ||
-		put_user(clipcount, &kp->clipcount))
-			return -EFAULT;
-	if (clipcount > 2048)
-		return -EINVAL;
-	if (clipcount) {
-		struct v4l2_clip32 __user *uclips;
-		struct v4l2_clip __user *kclips;
-		int n = clipcount;
-		compat_caddr_t p;
-
-		if (get_user(p, &up->clips))
-			return -EFAULT;
-		uclips = compat_ptr(p);
-		if (aux_space < n * sizeof(struct v4l2_clip))
-			return -EFAULT;
-		kclips = aux_buf;
-		if (put_user(kclips, &kp->clips))
-			return -EFAULT;
-		while (--n >= 0) {
-			if (copy_in_user(&kclips->c, &uclips->c, sizeof(uclips->c)))
-				return -EFAULT;
-			if (put_user(n ? kclips + 1 : NULL, &kclips->next))
-				return -EFAULT;
-			uclips += 1;
-			kclips += 1;
-		}
-	} else {
-		if (put_user(NULL, &kp->clips))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-static int put_v4l2_window32(struct v4l2_window __user *kp, struct v4l2_window32 __user *up)
-{
-	if (copy_in_user(&up->w, &kp->w, sizeof(kp->w)) ||
-			convert_in_user(&kp->field, &up->field) ||
-			convert_in_user(&kp->chromakey, &up->chromakey) ||
-			convert_in_user(&kp->clipcount, &up->clipcount))
-		return -EFAULT;
-	return 0;
-}
-
-static inline int get_v4l2_pix_format(struct v4l2_pix_format __user *kp, struct v4l2_pix_format __user *up)
-{
-	if (copy_in_user(kp, up, sizeof(struct v4l2_pix_format)))
-		return -EFAULT;
-	return 0;
-}
-
-static inline int get_v4l2_pix_format_mplane(struct v4l2_pix_format_mplane __user *kp,
-				struct v4l2_pix_format_mplane __user *up)
-{
-	if (copy_in_user(kp, up, sizeof(struct v4l2_pix_format_mplane)))
-=======
 static int get_v4l2_window32(struct v4l2_window __user *kp,
 			     struct v4l2_window32 __user *up,
 			     void __user *aux_buf, u32 aux_space)
@@ -157,33 +75,14 @@ static int get_v4l2_window32(struct v4l2_window __user *kp,
 	    assign_in_user(&kp->global_alpha, &up->global_alpha) ||
 	    get_user(clipcount, &up->clipcount) ||
 	    put_user(clipcount, &kp->clipcount))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 	if (clipcount > 2048)
 		return -EINVAL;
 	if (!clipcount)
 		return put_user(NULL, &kp->clips);
 
-<<<<<<< HEAD
-static inline int put_v4l2_pix_format(struct v4l2_pix_format __user *kp, struct v4l2_pix_format __user *up)
-{
-	if (copy_in_user(up, kp, sizeof(struct v4l2_pix_format)))
-		return -EFAULT;
-	return 0;
-}
 
-static inline int put_v4l2_pix_format_mplane(struct v4l2_pix_format_mplane __user *kp,
-				struct v4l2_pix_format_mplane __user *up)
-{
-	if (copy_in_user(up, kp, sizeof(struct v4l2_pix_format_mplane)))
-		return -EFAULT;
-	return 0;
-}
-
-static inline int get_v4l2_vbi_format(struct v4l2_vbi_format __user *kp, struct v4l2_vbi_format __user *up)
-{
-	if (copy_in_user(kp, up, sizeof(struct v4l2_vbi_format)))
-=======
 	if (get_user(p, &up->clips))
 		return -EFAULT;
 	uclips = compat_ptr(p);
@@ -191,21 +90,10 @@ static inline int get_v4l2_vbi_format(struct v4l2_vbi_format __user *kp, struct 
 		return -EFAULT;
 	kclips = aux_buf;
 	if (put_user(kclips, &kp->clips))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 
-<<<<<<< HEAD
-static inline int put_v4l2_vbi_format(struct v4l2_vbi_format __user *kp, struct v4l2_vbi_format __user *up)
-{
-	if (copy_in_user(up, kp, sizeof(struct v4l2_vbi_format)))
-		return -EFAULT;
-	return 0;
-}
 
-static inline int get_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format __user *kp, struct v4l2_sliced_vbi_format __user *up)
-{
-	if (copy_in_user(kp, up, sizeof(struct v4l2_sliced_vbi_format)))
-=======
 	while (clipcount--) {
 		if (copy_in_user(&kclips->c, &uclips->c, sizeof(uclips->c)))
 			return -EFAULT;
@@ -220,7 +108,7 @@ static inline int get_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format __use
 static int put_v4l2_window32(struct v4l2_window __user *kp,
 			     struct v4l2_window32 __user *up)
 {
-	struct v4l2_clip __user *kclips = kp->clips;
+	struct v4l2_clip __user *kclips;
 	struct v4l2_clip32 __user *uclips;
 	compat_caddr_t p;
 	u32 clipcount;
@@ -231,18 +119,17 @@ static int put_v4l2_window32(struct v4l2_window __user *kp,
 	    assign_in_user(&up->global_alpha, &kp->global_alpha) ||
 	    get_user(clipcount, &kp->clipcount) ||
 	    put_user(clipcount, &up->clipcount))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 	if (!clipcount)
 		return 0;
 
-<<<<<<< HEAD
-static inline int put_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format __user *kp, struct v4l2_sliced_vbi_format __user *up)
-{
-	if (copy_in_user(up, kp, sizeof(struct v4l2_sliced_vbi_format)))
-=======
+
+	if (get_user(kclips, &kp->clips))
+		return -EFAULT;
+
 	if (get_user(p, &up->clips))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 	uclips = compat_ptr(p);
 	while (clipcount--) {
@@ -283,33 +170,7 @@ struct v4l2_create_buffers32 {
 	__u32			reserved[8];
 };
 
-<<<<<<< HEAD
-static int __bufsize_v4l2_format32(struct v4l2_format32 __user *up)
-{
-	__u32 type;
 
-	if (get_user(type, &up->type))
-		return -EFAULT;
-
-	switch (type) {
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-		return bufsize_v4l2_window32(&up->fmt.win);
-	default:
-		return 0;
-	}
-}
-
-static int __get_v4l2_format32(struct v4l2_format __user *kp, struct
-		v4l2_format32 __user *up, void __user *aux_buf, int aux_space)
-{
-	__u32 type;
-
-	if (get_user(type, &up->type) || put_user(type, &kp->type))
-		return -EFAULT;
-
-	switch (type) {
-=======
 static int __bufsize_v4l2_format(struct v4l2_format32 __user *up, u32 *size)
 {
 	u32 type;
@@ -352,7 +213,7 @@ static int __get_v4l2_format32(struct v4l2_format __user *kp,
 		return -EFAULT;
 
 	switch (type) {
->>>>>>> v3.18.103
+
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		return copy_in_user(&kp->fmt.pix, &up->fmt.pix,
@@ -363,12 +224,10 @@ static int __get_v4l2_format32(struct v4l2_format __user *kp,
 				    sizeof(kp->fmt.pix_mp)) ? -EFAULT : 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-<<<<<<< HEAD
-		return get_v4l2_window32(&kp->fmt.win, &up->fmt.win, aux_buf, aux_space);
-=======
+
 		return get_v4l2_window32(&kp->fmt.win, &up->fmt.win,
 					 aux_buf, aux_space);
->>>>>>> v3.18.103
+
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		return copy_in_user(&kp->fmt.vbi, &up->fmt.vbi,
@@ -382,17 +241,7 @@ static int __get_v4l2_format32(struct v4l2_format __user *kp,
 	}
 }
 
-<<<<<<< HEAD
-static int bufsize_v4l2_format32(struct v4l2_format32 __user *up)
-{
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_format32)))
-		return -EFAULT;
-	return __bufsize_v4l2_format32(up);
-}
 
-static int get_v4l2_format32(struct v4l2_format __user *kp, struct
-		v4l2_format32 __user *up, void __user *aux_buf, int aux_space)
-=======
 static int get_v4l2_format32(struct v4l2_format __user *kp,
 			     struct v4l2_format32 __user *up,
 			     void __user *aux_buf, u32 aux_space)
@@ -404,35 +253,11 @@ static int get_v4l2_format32(struct v4l2_format __user *kp,
 
 static int bufsize_v4l2_create(struct v4l2_create_buffers32 __user *up,
 			       u32 *size)
->>>>>>> v3.18.103
+
 {
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)))
 		return -EFAULT;
-<<<<<<< HEAD
-	return __get_v4l2_format32(kp, up, aux_buf, aux_space);
-}
 
-static int bufsize_v4l2_create32(struct v4l2_create_buffers32 __user *up)
-{
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_create_buffers32)))
-		return -EFAULT;
-	return __bufsize_v4l2_format32(&up->format);
-}
-
-static int get_v4l2_create32(struct v4l2_create_buffers __user *kp, struct
-		v4l2_create_buffers32 __user *up, void __user *aux_buf,
-		int aux_space)
-{
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_create_buffers32)) ||
-	    copy_in_user(kp, up, offsetof(struct v4l2_create_buffers32, format)))
-		return -EFAULT;
-	return __get_v4l2_format32(&kp->format, &up->format, aux_buf, aux_space);
-}
-
-static int __put_v4l2_format32(struct v4l2_format __user *kp, struct v4l2_format32 __user *up)
-{
-	__u32 type;
-=======
 	return __bufsize_v4l2_format(&up->format, size);
 }
 
@@ -453,7 +278,7 @@ static int __put_v4l2_format32(struct v4l2_format __user *kp,
 			       struct v4l2_format32 __user *up)
 {
 	u32 type;
->>>>>>> v3.18.103
+
 
 	if (get_user(type, &kp->type))
 		return -EFAULT;
@@ -483,28 +308,17 @@ static int __put_v4l2_format32(struct v4l2_format __user *kp,
 	}
 }
 
-<<<<<<< HEAD
-static int put_v4l2_format32(struct v4l2_format __user *kp, struct v4l2_format32 __user *up)
-{
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_format32)) ||
-		convert_in_user(&kp->type, &up->type))
-=======
+
 static int put_v4l2_format32(struct v4l2_format __user *kp,
 			     struct v4l2_format32 __user *up)
 {
 	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 	return __put_v4l2_format32(kp, up);
 }
 
-<<<<<<< HEAD
-static int put_v4l2_create32(struct v4l2_create_buffers __user *kp, struct v4l2_create_buffers32 __user *up)
-{
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_create_buffers32)) ||
-	    copy_in_user(up, kp, offsetof(struct v4l2_create_buffers32, format.fmt)))
-			return -EFAULT;
-=======
+
 static int put_v4l2_create32(struct v4l2_create_buffers __user *kp,
 			     struct v4l2_create_buffers32 __user *up)
 {
@@ -513,7 +327,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *kp,
 			 offsetof(struct v4l2_create_buffers32, format)) ||
 	    copy_in_user(up->reserved, kp->reserved, sizeof(kp->reserved)))
 		return -EFAULT;
->>>>>>> v3.18.103
+
 	return __put_v4l2_format32(&kp->format, &up->format);
 }
 
@@ -526,36 +340,19 @@ struct v4l2_standard32 {
 	__u32		     reserved[4];
 };
 
-<<<<<<< HEAD
-static int get_v4l2_standard32(struct v4l2_standard __user *kp, struct v4l2_standard32 __user *up)
-{
-	/* other fields are not set by the user, nor used by the driver */
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_standard32)) ||
-		convert_in_user(&up->index, &kp->index))
-=======
+
 static int get_v4l2_standard32(struct v4l2_standard __user *kp,
 			       struct v4l2_standard32 __user *up)
 {
 	/* other fields are not set by the user, nor used by the driver */
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
 	    assign_in_user(&kp->index, &up->index))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 	return 0;
 }
 
-<<<<<<< HEAD
-static int put_v4l2_standard32(struct v4l2_standard __user *kp, struct v4l2_standard32 __user *up)
-{
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_standard32)) ||
-		convert_in_user(&kp->index, &up->index) ||
-		copy_in_user(up->id, &kp->id, sizeof(__u64)) ||
-		copy_in_user(up->name, kp->name, 24) ||
-		copy_in_user(&up->frameperiod, &kp->frameperiod, sizeof(kp->frameperiod)) ||
-		convert_in_user(&kp->framelines, &up->framelines) ||
-		copy_in_user(up->reserved, kp->reserved, 4 * sizeof(__u32)))
-			return -EFAULT;
-=======
+
 static int put_v4l2_standard32(struct v4l2_standard __user *kp,
 			       struct v4l2_standard32 __user *up)
 {
@@ -568,7 +365,7 @@ static int put_v4l2_standard32(struct v4l2_standard __user *kp,
 	    assign_in_user(&up->framelines, &kp->framelines) ||
 	    copy_in_user(up->reserved, kp->reserved, sizeof(up->reserved)))
 		return -EFAULT;
->>>>>>> v3.18.103
+
 	return 0;
 }
 
@@ -611,23 +408,7 @@ static int get_v4l2_plane32(struct v4l2_plane __user *up,
 			    struct v4l2_plane32 __user *up32,
 			    enum v4l2_memory memory)
 {
-<<<<<<< HEAD
-	compat_long_t p;
 
-	if (copy_in_user(up, up32, 2 * sizeof(__u32)) ||
-		copy_in_user(&up->data_offset, &up32->data_offset,
-				sizeof(__u32)) ||
-		copy_in_user(up->reserved, up32->reserved,
-				sizeof(up->reserved)) ||
-		copy_in_user(&up->length, &up32->length,
-				sizeof(__u32)))
-		return -EFAULT;
-
-	if (memory == V4L2_MEMORY_USERPTR) {
-		if (get_user(p, &up32->m.userptr) ||
-			put_user((unsigned long) compat_ptr(p),
-				&up->m.userptr))
-=======
 	compat_ulong_t p;
 
 	if (copy_in_user(up, up32, 2 * sizeof(__u32)) ||
@@ -640,7 +421,7 @@ static int get_v4l2_plane32(struct v4l2_plane __user *up,
 	case V4L2_MEMORY_OVERLAY:
 		if (copy_in_user(&up->m.mem_offset, &up32->m.mem_offset,
 				 sizeof(up32->m.mem_offset)))
->>>>>>> v3.18.103
+
 			return -EFAULT;
 		break;
 	case V4L2_MEMORY_USERPTR:
@@ -664,15 +445,10 @@ static int put_v4l2_plane32(struct v4l2_plane __user *up,
 	unsigned long p;
 
 	if (copy_in_user(up32, up, 2 * sizeof(__u32)) ||
-<<<<<<< HEAD
-		copy_in_user(up32->reserved, up->reserved,
-				sizeof(up32->reserved)) ||
-		copy_in_user(&up32->data_offset, &up->data_offset,
-				sizeof(__u32)))
-=======
+
 	    copy_in_user(&up32->data_offset, &up->data_offset,
 			 sizeof(up->data_offset)))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 
 	switch (memory) {
@@ -687,33 +463,19 @@ static int put_v4l2_plane32(struct v4l2_plane __user *up,
 		    put_user((compat_ulong_t)ptr_to_compat((__force void *)p),
 			     &up32->m.userptr))
 			return -EFAULT;
-<<<<<<< HEAD
-	if (memory == V4L2_MEMORY_USERPTR)
-		if (copy_in_user(&up32->m.userptr, &up->m.userptr,
-					sizeof(compat_long_t)))
-			return -EFAULT;
-=======
+
 		break;
 	case V4L2_MEMORY_DMABUF:
 		if (copy_in_user(&up32->m.fd, &up->m.fd, sizeof(up->m.fd)))
 			return -EFAULT;
 		break;
 	}
->>>>>>> v3.18.103
+
 
 	return 0;
 }
 
-<<<<<<< HEAD
-static int bufsize_v4l2_buffer32(struct v4l2_buffer32 __user *up)
-{
-	__u32 type;
-	__u32 length;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_buffer32)) ||
-			get_user(type, &up->type) ||
-			get_user(length, &up->length))
-=======
 static int bufsize_v4l2_buffer(struct v4l2_buffer32 __user *up, u32 *size)
 {
 	u32 type;
@@ -722,19 +484,14 @@ static int bufsize_v4l2_buffer(struct v4l2_buffer32 __user *up, u32 *size)
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
 	    get_user(type, &up->type) ||
 	    get_user(length, &up->length))
->>>>>>> v3.18.103
+
 		return -EFAULT;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(type)) {
 		if (length > VIDEO_MAX_PLANES)
 			return -EINVAL;
 
-<<<<<<< HEAD
-		/* We don't really care if userspace decides to kill itself
-		 * by passing a very big length value
-		 */
-		return length * sizeof(struct v4l2_plane);
-=======
+
 		/*
 		 * We don't really care if userspace decides to kill itself
 		 * by passing a very big length value
@@ -742,58 +499,26 @@ static int bufsize_v4l2_buffer(struct v4l2_buffer32 __user *up, u32 *size)
 		*size = length * sizeof(struct v4l2_plane);
 	} else {
 		*size = 0;
->>>>>>> v3.18.103
+
 	}
 	return 0;
 }
 
-<<<<<<< HEAD
-static int get_v4l2_buffer32(struct v4l2_buffer __user *kp, struct
-		v4l2_buffer32 __user *up, void __user *aux_buf, int aux_space)
-{
-	__u32 type;
-	__u32 length;
-=======
+
 static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 			     struct v4l2_buffer32 __user *up,
 			     void __user *aux_buf, u32 aux_space)
 {
 	u32 type;
 	u32 length;
->>>>>>> v3.18.103
+
 	enum v4l2_memory memory;
 	struct v4l2_plane32 __user *uplane32;
 	struct v4l2_plane __user *uplane;
 	compat_caddr_t p;
 	int ret;
 
-<<<<<<< HEAD
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_buffer32)) ||
-		convert_in_user(&up->index, &kp->index) ||
-		get_user(type, &up->type) ||
-		put_user(type, &kp->type) ||
-		convert_in_user(&up->flags, &kp->flags) ||
-		get_user(memory, &up->memory) ||
-		put_user(memory, &kp->memory) ||
-		convert_in_user(&up->length, &kp->length) ||
-		get_user(length, &up->length) ||
-		put_user(length, &kp->length))
-			return -EFAULT;
 
-	if (V4L2_TYPE_IS_OUTPUT(type))
-		if (convert_in_user(&up->bytesused, &kp->bytesused) ||
-			convert_in_user(&up->field, &kp->field) ||
-			convert_in_user(&up->timestamp.tv_sec, &kp->timestamp.tv_sec) ||
-			convert_in_user(&up->timestamp.tv_usec,
-					&kp->timestamp.tv_usec))
-			return -EFAULT;
-
-	if (V4L2_TYPE_IS_MULTIPLANAR(type)) {
-		num_planes = length;
-		if (num_planes == 0) {
-			/* num_planes == 0 is legal, e.g. when userspace doesn't
-			 * need planes array on DQBUF*/
-=======
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
 	    assign_in_user(&kp->index, &up->index) ||
 	    get_user(type, &up->type) ||
@@ -822,7 +547,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 			 * num_planes == 0 is legal, e.g. when userspace doesn't
 			 * need planes array on DQBUF
 			 */
->>>>>>> v3.18.103
+
 			return put_user(NULL, &kp->m.planes);
 		}
 		if (num_planes > VIDEO_MAX_PLANES)
@@ -836,19 +561,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 			       num_planes * sizeof(*uplane32)))
 			return -EFAULT;
 
-<<<<<<< HEAD
-		/* We don't really care if userspace decides to kill itself
-		 * by passing a very big num_planes value */
-		if (aux_space < num_planes * sizeof(struct v4l2_plane))
-			return -EFAULT;
 
-		uplane = aux_buf;
-		if (put_user((__force struct v4l2_plane *)uplane,
-					&kp->m.planes))
-			return -EFAULT;
-
-		while (--num_planes >= 0) {
-=======
 		/*
 		 * We don't really care if userspace decides to kill itself
 		 * by passing a very big num_planes value
@@ -862,7 +575,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 			return -EFAULT;
 
 		while (num_planes--) {
->>>>>>> v3.18.103
+
 			ret = get_v4l2_plane32(uplane, uplane32, memory);
 			if (ret)
 				return ret;
