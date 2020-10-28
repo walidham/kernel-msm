@@ -1028,8 +1028,26 @@ err_kcontrol:
 
 static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 {
-	struct wm_coeff_ctl *ctl;
-	int ret = 0;
+	LIST_HEAD(buf_list);
+	const struct firmware *firmware;
+	struct regmap *regmap = dsp->regmap;
+	unsigned int pos = 0;
+	const struct wmfw_header *header;
+	const struct wmfw_adsp1_sizes *adsp1_sizes;
+	const struct wmfw_adsp2_sizes *adsp2_sizes;
+	const struct wmfw_footer *footer;
+	const struct wmfw_region *region;
+	const struct wm_adsp_region *mem;
+	const char *region_name;
+	char *file, *text = NULL;
+	struct wm_adsp_buf *buf;
+	unsigned int reg;
+	int regions = 0;
+	int ret, offset, type, sizes;
+
+	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (file == NULL)
+		return -ENOMEM;
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
 		if (!ctl->enabled || (ctl->flags & WMFW_CTL_FLAG_VOLATILE))
@@ -1065,8 +1083,193 @@ static int wm_coeff_sync_controls(struct wm_adsp *dsp)
 
 		mutex_unlock(&ctl->lock);
 
+<<<<<<< HEAD
 		if (ret < 0)
 			return ret;
+=======
+	default:
+		WARN(1, "Unknown DSP type");
+		goto out_fw;
+	}
+
+	if (le32_to_cpu(header->len) != sizeof(*header) +
+	    sizes + sizeof(*footer)) {
+		adsp_err(dsp, "%s: unexpected header length %d\n",
+			 file, le32_to_cpu(header->len));
+		goto out_fw;
+	}
+
+	adsp_dbg(dsp, "%s: timestamp %llu\n", file,
+		 le64_to_cpu(footer->timestamp));
+
+	while (pos < firmware->size &&
+	       pos - firmware->size > sizeof(*region)) {
+		region = (void *)&(firmware->data[pos]);
+		region_name = "Unknown";
+		reg = 0;
+		text = NULL;
+		offset = le32_to_cpu(region->offset) & 0xffffff;
+		type = be32_to_cpu(region->type) & 0xff;
+		mem = wm_adsp_find_region(dsp, type);
+		
+		switch (type) {
+		case WMFW_NAME_TEXT:
+			region_name = "Firmware name";
+			text = kzalloc(le32_to_cpu(region->len) + 1,
+				       GFP_KERNEL);
+			break;
+		case WMFW_INFO_TEXT:
+			region_name = "Information";
+			text = kzalloc(le32_to_cpu(region->len) + 1,
+				       GFP_KERNEL);
+			break;
+		case WMFW_ABSOLUTE:
+			region_name = "Absolute";
+			reg = offset;
+			break;
+		case WMFW_ADSP1_PM:
+			region_name = "PM";
+			reg = wm_adsp_region_to_reg(mem, offset);
+			break;
+		case WMFW_ADSP1_DM:
+			region_name = "DM";
+			reg = wm_adsp_region_to_reg(mem, offset);
+			break;
+		case WMFW_ADSP2_XM:
+			region_name = "XM";
+			reg = wm_adsp_region_to_reg(mem, offset);
+			break;
+		case WMFW_ADSP2_YM:
+			region_name = "YM";
+			reg = wm_adsp_region_to_reg(mem, offset);
+			break;
+		case WMFW_ADSP1_ZM:
+			region_name = "ZM";
+			reg = wm_adsp_region_to_reg(mem, offset);
+			break;
+		default:
+			adsp_warn(dsp,
+				  "%s.%d: Unknown region type %x at %d(%x)\n",
+				  file, regions, type, pos, pos);
+			break;
+		}
+
+		adsp_dbg(dsp, "%s.%d: %d bytes at %d in %s\n", file,
+			 regions, le32_to_cpu(region->len), offset,
+			 region_name);
+
+		if ((pos + le32_to_cpu(region->len) + sizeof(*region)) >
+		    firmware->size) {
+			adsp_err(dsp,
+				 "%s.%d: %s region len %d bytes exceeds file length %zu\n",
+				 file, regions, region_name,
+				 le32_to_cpu(region->len), firmware->size);
+			ret = -EINVAL;
+			goto out_fw;
+		}
+
+		if (text) {
+			memcpy(text, region->data, le32_to_cpu(region->len));
+			adsp_info(dsp, "%s: %s\n", file, text);
+			kfree(text);
+			text = NULL;
+		}
+
+		if (reg) {
+			size_t to_write = PAGE_SIZE;
+			size_t remain = le32_to_cpu(region->len);
+			const u8 *data = region->data;
+
+			while (remain > 0) {
+				if (remain < PAGE_SIZE)
+					to_write = remain;
+
+				buf = wm_adsp_buf_alloc(data,
+							to_write,
+							&buf_list);
+				if (!buf) {
+					adsp_err(dsp, "Out of memory\n");
+					ret = -ENOMEM;
+					goto out_fw;
+				}
+
+				ret = regmap_raw_write_async(regmap, reg,
+							     buf->buf,
+							     to_write);
+				if (ret != 0) {
+					adsp_err(dsp,
+						"%s.%d: Failed to write %zd bytes at %d in %s: %d\n",
+						file, regions,
+						to_write, offset,
+						region_name, ret);
+					goto out_fw;
+				}
+
+				data += to_write;
+				reg += to_write / 2;
+				remain -= to_write;
+			}
+		}
+
+		pos += le32_to_cpu(region->len) + sizeof(*region);
+		regions++;
+	}
+
+	ret = regmap_async_complete(regmap);
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to complete async write: %d\n", ret);
+		goto out_fw;
+	}
+
+	if (pos > firmware->size)
+		adsp_warn(dsp, "%s.%d: %zu bytes at end of file\n",
+			  file, regions, pos - firmware->size);
+
+out_fw:
+	regmap_async_complete(regmap);
+	wm_adsp_buf_free(&buf_list);
+	release_firmware(firmware);
+	kfree(text);
+out:
+	kfree(file);
+
+	return ret;
+}
+
+static int wm_coeff_init_control_caches(struct wm_adsp *adsp)
+{
+	struct wm_coeff_ctl *ctl;
+	int ret;
+
+	list_for_each_entry(ctl, &adsp->ctl_list, list) {
+		if (!ctl->enabled || ctl->set)
+			continue;
+		ret = wm_coeff_read_control(ctl->kcontrol,
+					    ctl->cache,
+					    ctl->len);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int wm_coeff_sync_controls(struct wm_adsp *adsp)
+{
+	struct wm_coeff_ctl *ctl;
+	int ret;
+
+	list_for_each_entry(ctl, &adsp->ctl_list, list) {
+		if (!ctl->enabled)
+			continue;
+		if (ctl->set) {
+			ret = wm_coeff_write_control(ctl->kcontrol,
+						     ctl->cache,
+						     ctl->len);
+			if (ret < 0)
+				return ret;
+		}
+>>>>>>> v3.18.85
 	}
 
 	return 0;
@@ -1647,10 +1850,32 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
+<<<<<<< HEAD
 			ret = wm_adsp_write_blocks(dsp, region->data,
 						   le32_to_cpu(region->len),
 						   reg, &buf_list,
 						   burst_multiple);
+=======
+			if ((pos + le32_to_cpu(blk->len) + sizeof(*blk)) >
+			    firmware->size) {
+				adsp_err(dsp,
+					 "%s.%d: %s region len %d bytes exceeds file length %zu\n",
+					 file, blocks, region_name,
+					 le32_to_cpu(blk->len),
+					 firmware->size);
+				ret = -EINVAL;
+				goto out_fw;
+			}
+
+			buf = wm_adsp_buf_alloc(blk->data,
+						le32_to_cpu(blk->len),
+						&buf_list);
+			if (!buf) {
+				adsp_err(dsp, "Out of memory\n");
+				ret = -ENOMEM;
+				goto out_fw;
+			}
+>>>>>>> v3.18.85
 
 			if (ret != 0) {
 				adsp_err(dsp,
