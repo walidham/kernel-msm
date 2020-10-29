@@ -29,7 +29,6 @@
 	typeof(*from) __assign_tmp;					\
 									\
 	get_user(__assign_tmp, from) || put_user(__assign_tmp, to);	\
-
 })
 
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
