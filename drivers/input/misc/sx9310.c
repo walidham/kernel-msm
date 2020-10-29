@@ -892,10 +892,10 @@ static int sx9310_probe(struct i2c_client *client, const struct i2c_device_id *i
 #ifdef USE_SENSORS_CLASS
 		sensors_capsensor_cdev.sensors_enable = capsensor_set_enable;
 		sensors_capsensor_cdev.sensors_poll_delay = NULL;
-		ret = sensors_classdev_register(&input->dev, &sensors_capsensor_cdev);
+		/*ret = sensors_classdev_register(&input->dev, &sensors_capsensor_cdev);
 		if (ret < 0) {
 			LOG_DBG("Create sensor_class file failed (%d)\n", ret);
-		}
+		}*/
 #endif
 
 		pplatData->cap_vdd = regulator_get(&client->dev, "cap_vdd");
@@ -974,7 +974,7 @@ static int sx9310_remove(struct i2c_client *client)
 	pDevice = this->pDevice;
 	if (this && pDevice) {
 #ifdef USE_SENSORS_CLASS
-		sensors_classdev_unregister(&sensors_capsensor_cdev);
+		//sensors_classdev_unregister(&sensors_capsensor_cdev);
 #endif
 		input_unregister_device(pDevice->pbuttonInformation->input);
 
