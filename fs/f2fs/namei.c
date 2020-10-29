@@ -224,8 +224,6 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	d_instantiate_new(dentry, inode);
 
-	if (IS_DIRSYNC(dir))
-		f2fs_sync_fs(sbi->sb, 1);
 	return 0;
 out:
 	handle_failed_inode(inode);
@@ -449,63 +447,8 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	f2fs_unlock_op(sbi);
 	alloc_nid_done(sbi, inode->i_ino);
 
-	if (f2fs_encrypted_inode(dir)) {
-		struct qstr istr = QSTR_INIT(symname, len);
-
-		err = f2fs_get_encryption_info(inode);
-		if (err)
-			goto err_out;
-
-		err = f2fs_fname_crypto_alloc_buffer(inode, len, &disk_link);
-		if (err)
-			goto err_out;
-
-		err = f2fs_fname_usr_to_disk(inode, &istr, &disk_link);
-		if (err < 0)
-			goto err_out;
-
-		p_len = encrypted_symlink_data_len(disk_link.len) + 1;
-
-		if (p_len > dir->i_sb->s_blocksize) {
-			err = -ENAMETOOLONG;
-			goto err_out;
-		}
-
-		sd = kzalloc(p_len, GFP_NOFS);
-		if (!sd) {
-			err = -ENOMEM;
-			goto err_out;
-		}
-		memcpy(sd->encrypted_path, disk_link.name, disk_link.len);
-		sd->len = cpu_to_le16(disk_link.len);
-		p_str = (char *)sd;
-	} else {
-		p_len = len + 1;
-		p_str = (char *)symname;
-	}
-
-	err = page_symlink(inode, p_str, p_len);
-
-err_out:
 	d_instantiate_new(dentry, inode);
 
-	/*
-	 * Let's flush symlink data in order to avoid broken symlink as much as
-	 * possible. Nevertheless, fsyncing is the best way, but there is no
-	 * way to get a file descriptor in order to flush that.
-	 *
-	 * Note that, it needs to do dir->fsync to make this recoverable.
-	 * If the symlink path is stored into inline_data, there is no
-	 * performance regression.
-	 */
-	if (!err)
-		filemap_write_and_wait_range(inode->i_mapping, 0, p_len - 1);
-
-	if (IS_DIRSYNC(dir))
-		f2fs_sync_fs(sbi->sb, 1);
-
-	kfree(sd);
-	f2fs_fname_crypto_free_buffer(&disk_link);
 	return err;
 out:
 	handle_failed_inode(inode);
@@ -587,62 +530,6 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 
 	d_instantiate_new(dentry, inode);
 
-	if (IS_DIRSYNC(dir))
-		f2fs_sync_fs(sbi->sb, 1);
-	return 0;
-out:
-	handle_failed_inode(inode);
-	return err;
-}
-
-static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
-					umode_t mode, struct inode **whiteout)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct inode *inode;
-	int err;
-
-	if (!whiteout)
-		f2fs_balance_fs(sbi);
-
-	inode = f2fs_new_inode(dir, mode);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-
-	if (whiteout) {
-		init_special_inode(inode, inode->i_mode, WHITEOUT_DEV);
-		inode->i_op = &f2fs_special_inode_operations;
-	} else {
-		inode->i_op = &f2fs_file_inode_operations;
-		inode->i_fop = &f2fs_file_operations;
-		inode->i_mapping->a_ops = &f2fs_dblock_aops;
-	}
-
-	f2fs_lock_op(sbi);
-	err = acquire_orphan_inode(sbi);
-	if (err)
-		goto out;
-
-	err = f2fs_do_tmpfile(inode, dir);
-	if (err)
-		goto release_out;
-
-	/*
-	 * add this non-linked tmpfile to orphan list, in this way we could
-	 * remove all unused data of tmpfile after abnormal power-off.
-	 */
-	add_orphan_inode(sbi, inode->i_ino);
-	f2fs_unlock_op(sbi);
-
-	alloc_nid_done(sbi, inode->i_ino);
-
-	if (whiteout) {
-		inode_dec_link_count(inode);
-		*whiteout = inode;
-	} else {
-		d_tmpfile(dentry, inode);
-	}
-	unlock_new_inode(inode);
 	return 0;
 
 release_out:
